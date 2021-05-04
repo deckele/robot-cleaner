@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Robot</title>
+    <style>
+      :root {
+        --items-num: 10;
+        --items-fr: 10fr;
+        --color-clean: yellow;
+        --color-floor: red;
+        --color-wall: rgb(166, 118, 232);
+        --color-start: greenyellow;
+        --robot-rotation: 0deg;
+        --robot-x: 0px;
+        --robot-y: 0px;
+        --in-front: 100;
+        --animation-speed: 200ms;
+      }
+      aside {
+        position: absolute;
+        margin: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      main {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: inline-grid;
+        grid-template-columns: repeat(var(--items-num), var(--items-fr));
+        grid-template-rows: repeat(var(--items-num), var(--items-fr));
+        gap: 2px;
+        height: 800px;
+        width: 800px;
+      }
+      input[type="radio"] + label {
+        padding: 2px;
+      }
+      input[type="radio"]:hover + label {
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+      input[type="radio"]:checked + label {
+        font-weight: bold;
+      }
+      input[type="radio"] {
+        position: relative;
+      }
+      input[type="radio"]::after {
+        content: "";
+        left: -5px;
+        width: 20px;
+        top: -3px;
+        height: 20px;
+        position: absolute;
+        border-radius: 4px;
+        box-sizing: border-box;
+        border: 1px solid black;
+      }
+      input[type="radio"]#floor::after {
+        background-color: var(--color-floor);
+      }
+      input[type="radio"]#wall::after {
+        background-color: var(--color-wall);
+      }
+      input[type="radio"]#start::after {
+        background-color: var(--color-start);
+      }
+      input[type="radio"]:checked::after {
+        border: 2px solid blue;
+      }
+      datalist {
+        display: flex;
+      }
+      .grid-tile {
+        border: 1px solid black;
+        box-sizing: border-box;
+        position: relative;
+      }
+      .grid-tile.wall {
+        background: var(--color-wall);
+      }
+      .grid-tile.floor {
+        background: var(--color-floor);
+      }
+      .grid-tile.clean {
+        background: var(--color-clean);
+      }
+      .grid-tile.start {
+        background: var(--color-start);
+      }
+      #robot {
+        background-color: darkgrey;
+        width: 90%;
+        height: 90%;
+        border-radius: 50%;
+        box-sizing: border-box;
+        box-shadow: 0px 5px slategrey;
+        transform: translate(var(--robot-x), var(--robot-y));
+        position: absolute;
+        top: 0;
+        bottom: 5px;
+        left: 0;
+        right: 0;
+        margin: auto;
+        z-index: var(--in-front);
+      }
+      #arrow-rotater {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        padding: 5px;
+        box-sizing: border-box;
+        transform: rotate(var(--robot-rotation));
+        transition: transform calc(var(--animation-speed) / 2) ease-in;
+      }
+      #arrow {
+        border: solid rgb(33, 232, 202);
+        border-width: 0 4px 4px 0;
+        display: inline-block;
+        box-sizing: border-box;
+        padding: 5px;
+        position: absolute;
+        transform: rotate(-135deg);
+      }
+    </style>
+  </head>
+  <body onload="handleLoad();">
+    <aside>
+      <select
+        name="size-select"
+        id="size-select"
+        onchange="handleFloorSizeSelect(this.value);"
+      >
+        <option value="5">5X5</option>
+        <option value="10" selected>10X10</option>
+        <option value="20">20X20</option>
+        <option value="40">40X40</option>
+        <option value="80">80X80</option>
+      </select>
+      <div>
+        <input
+          type="radio"
+          name="tile-type"
+          class="tile-type"
+          id="wall"
+          value="wall"
+          checked
+        />
+        <label for="wall">Wall</label>
+      </div>
+      <div>
+        <input
+          type="radio"
+          name="tile-type"
+          class="tile-type"
+          id="floor"
+          value="floor"
+        />
+        <label for="floor">Floor</label>
+      </div>
+      <div>
+        <input
+          type="radio"
+          name="tile-type"
+          class="tile-type"
+          id="start"
+          value="start"
+        />
+        <label for="start">Starting Position</label>
+      </div>
+      <div>
+        <input
+          id="animation-speed"
+          type="range"
+          list="tickmarks"
+          min="0"
+          max="2"
+          step="1"
+          onchange="handleAnimationSpeedChange(this.value)"
+        />
+        <datalist id="tickmarks">
+          <option value="0">Slow</option>
+          <option value="1">Moderate</option>
+          <option value="2">Fast</option>
+        </datalist>
+      </div>
+      <button disabled id="start-cleaning" onclick="cleanSpace()">
+        Start Cleaning!
+      </button>
+      <button id="clear" onclick="handleClear()">Clear</button>
+    </aside>
+    <main id="board"></main>
+    <script>
+      const main = document.getElementById("board");
+      const sizeSelect = document.getElementById("size-select");
+      const startButton = document.getElementById("start-cleaning");
+      const clearButton = document.getElementById("clear");
+      const speedSlider = document.getElementById("animation-speed");
+
+      const animationSpeedSliderMap = {
+        0: "500ms",
+        1: "100ms",
+        2: "50ms",
+      };
+      const tileTypes = {
+        floor: "floor",
+        wall: "wall",
+        start: "start",
+        robot: "robot",
+        clean: "clean",
+      };
+
+      function getFloorSize() {
+        return Number(sizeSelect.value);
+      }
+      function getStartingTile() {
+        return document.querySelector(".grid-tile.start");
+      }
+      function getRobot() {
+        return document.getElementById("robot");
+      }
+      function getTileByXY(x, y) {
+        return document.querySelector(
+          `.grid-tile[data-x="${x}"][data-y="${y}"]`
+        );
+      }
+      function fromIndexToXY(index) {
+        const size = getFloorSize();
+        const x = index % size;
+        const y = (index - x) / size;
+        return { x, y };
+      }
+      function createTile(tileIndex) {
+        const tile = document.createElement("div");
+        tile.classList.add("grid-tile", tileTypes.floor);
+        const { x, y } = fromIndexToXY(tileIndex);
+        tile.dataset.x = x;
+        tile.dataset.y = y;
+        tile.onmouseover = (e) => e.buttons === 1 && handleTileClicked(tile);
+        tile.onmousedown = (e) => e.buttons === 1 && handleTileClicked(tile);
+        return tile;
+      }
+      function paintTile(tileIndex) {
+        const tile = createTile(tileIndex);
+        main.appendChild(tile);
+      }
+      function createRobot() {
+        const startingTile = getStartingTile();
+        const robot = document.createElement("div");
+        robot.id = "robot";
+        robot.dataset.x = Number(startingTile.dataset.x);
+        robot.dataset.y = Number(startingTile.dataset.y);
+        robot.dataset.rotation = Directions.north;
+        const arrowRotater = document.createElement("div");
+        arrowRotater.id = "arrow-rotater";
+        const arrow = document.createElement("div");
+        arrow.id = "arrow";
+        arrowRotater.appendChild(arrow);
+        robot.appendChild(arrowRotater);
+        return robot;
+      }
+      function paintRobotOnStart() {
+        const robot = getRobot() || createRobot();
+        const start = getStartingTile();
+        if (!start) throw "error: no starting position!";
+        start.appendChild(robot);
+      }
+      function handleTileClicked(tile) {
+        if (main.dataset.isCleaning) return;
+        const tileTypeInput = document.querySelector(
+          'input[type="radio"]:checked'
+        );
+        const value = tileTypeInput.value;
+        if (value === tileTypes.start) {
+          const startingTile = getStartingTile();
+          startingTile?.classList.replace(tileTypes.start, tileTypes.floor);
+        }
+        tile.className = "";
+        tile.classList.add("grid-tile", value);
+        startButton.disabled = getStartingTile() ? false : true;
+      }
+      function handleFloorSizeSelect(value) {
+        startButton.disabled = true;
+        main.textContent = "";
+        main.style.setProperty("--items-num", value);
+        main.style.setProperty("--items-fr", value + "fr");
+        for (let i = 0; i < value ** 2; i++) {
+          paintTile(i);
+        }
+      }
+      function handleClear() {
+        handleFloorSizeSelect(getFloorSize());
+      }
+      function handleLoad() {
+        handleFloorSizeSelect(10);
+      }
+      function handleAnimationSpeedChange(value) {
+        main.style.setProperty(
+          "--animation-speed",
+          animationSpeedSliderMap[value]
+        );
+      }
+
+      class Robot {
+        move() {
+          const robot = getRobot();
+          let x = Number(robot.dataset.x);
+          let y = Number(robot.dataset.y);
+          const currentTile = getTileByXY(x, y);
+          const rotation = Number(robot.dataset.rotation);
+          const size = getFloorSize();
+          switch (rotation) {
+            case Directions.north:
+              y--;
+              break;
+            case Directions.east:
+              x++;
+              break;
+            case Directions.south:
+              y++;
+              break;
+            case Directions.west:
+              x--;
+              break;
+          }
+          const nextTile = getTileByXY(x, y);
+
+          // if out of bounds or wall, return false;
+          if (!nextTile || nextTile.classList.contains(tileTypes.wall))
+            return false;
+          robot.dataset.x = x;
+          robot.dataset.y = y;
+          console.log("moved to: ", { x, y });
+          const { x: prevX, y: prevY } = robot.getBoundingClientRect();
+          nextTile.appendChild(robot);
+          const { x: currX, y: currY } = robot.getBoundingClientRect();
+          return new Promise((resolve) => {
+            requestAnimationFrame(() => {
+              robot.style.transition = "none";
+              main.style.setProperty("--robot-x", prevX - currX + "px");
+              main.style.setProperty("--robot-y", prevY - currY + "px");
+              function listener() {
+                robot.removeEventListener("transitionend", listener);
+                resolve(true);
+              }
+              requestAnimationFrame(() => {
+                robot.style.transition =
+                  "transform var(--animation-speed) linear";
+                robot.addEventListener("transitionend", listener);
+                main.style.setProperty("--robot-x", "0px");
+                main.style.setProperty("--robot-y", "0px");
+              });
+            });
+          });
+        }
+        rotate() {
+          const robot = getRobot();
+          const rotation = Number(robot.dataset.rotation);
+          robot.dataset.rotation = (rotation + 1) % numOfDirections;
+          return new Promise((resolve) => {
+            function listener() {
+              robot.removeEventListener("transitionend", listener);
+              resolve(true);
+            }
+            requestAnimationFrame(() => {
+              robot.addEventListener("transitionend", listener);
+              const currentRotation =
+                parseInt(
+                  getComputedStyle(main).getPropertyValue("--robot-rotation")
+                ) || 0;
+              const newRotation = currentRotation + 90;
+              main.style.setProperty("--robot-rotation", newRotation + "deg");
+            });
+          });
+        }
+        cleanspot() {
+          const robot = getRobot();
+          let x = Number(robot.dataset.x);
+          let y = Number(robot.dataset.y);
+          const currentTile = getTileByXY(x, y);
+          currentTile.classList.replace(tileTypes.floor, tileTypes.clean);
+        }
+      }
+      const Directions = {
+        north: 0,
+        east: 1,
+        south: 2,
+        west: 3,
+      };
+      const numOfDirections = Object.keys(Directions).length;
+
+      class RobotController {
+        rotation = Directions.north;
+        get position() {
+          return `x=${this.x},y=${this.y}`;
+        }
+
+        getPositionNorth() {
+          return `x=${this.x},y=${this.y - 1}`;
+        }
+        getPositionEast() {
+          return `x=${this.x + 1},y=${this.y}`;
+        }
+        getPositionSouth() {
+          return `x=${this.x},y=${this.y + 1}`;
+        }
+        getPositionWest() {
+          return `x=${this.x - 1},y=${this.y}`;
+        }
+
+        constructor(robot, initialX, initialY) {
+          this.robot = robot;
+          this.x = initialX;
+          this.y = initialY;
+        }
+        async move(direction) {
+          if (
+            direction == null ||
+            direction < 0 ||
+            direction >= numOfDirections
+          ) {
+            throw "error: illegal direction";
+          }
+          while (this.rotation !== direction) {
+            await this.rotate();
+          }
+          let moveSucceeded = await this.robot.move();
+          if (!moveSucceeded) return false;
+          switch (this.rotation) {
+            case Directions.north:
+              this.y--;
+              break;
+            case Directions.east:
+              this.x++;
+              break;
+            case Directions.south:
+              this.y++;
+              break;
+            case Directions.west:
+              this.x--;
+              break;
+          }
+          return true;
+        }
+        rotate() {
+          this.rotation = (this.rotation + 1) % numOfDirections;
+          return this.robot.rotate();
+        }
+        moveNorth() {
+          return this.move(Directions.north);
+        }
+        moveEast() {
+          return this.move(Directions.east);
+        }
+        moveSouth() {
+          return this.move(Directions.south);
+        }
+        moveWest() {
+          return this.move(Directions.west);
+        }
+      }
+
+      function disableInputs() {
+        const robot = getRobot();
+        main.dataset.isCleaning = true;
+        sizeSelect.disabled = true;
+        startButton.disabled = true;
+        clearButton.disabled = true;
+      }
+      function enableInputs() {
+        const robot = getRobot();
+        main.dataset.isCleaning = false;
+        sizeSelect.disabled = false;
+        startButton.disabled = false;
+        clearButton.disabled = false;
+      }
+
+      async function cleanSpace() {
+        disableInputs();
+        const robot = new Robot();
+        const startingTile = getStartingTile();
+        paintRobotOnStart();
+        const controller = new RobotController(
+          robot,
+          Number(startingTile.dataset.x),
+          Number(startingTile.dataset.y)
+        );
+        const visited = new Set();
+        await robotDfs(robot, controller, visited, null);
+        enableInputs();
+      }
+
+      async function robotDfs(robot, controller, visited, goBackCallback) {
+        robot.cleanspot();
+        visited.add(controller.position);
+
+        if (!visited.has(controller.getPositionNorth())) {
+          if (await controller.moveNorth())
+            await robotDfs(robot, controller, visited, () =>
+              controller.moveSouth()
+            );
+        }
+        if (!visited.has(controller.getPositionEast())) {
+          if (await controller.moveEast())
+            await robotDfs(robot, controller, visited, () =>
+              controller.moveWest()
+            );
+        }
+        if (!visited.has(controller.getPositionSouth())) {
+          if (await controller.moveSouth())
+            await robotDfs(robot, controller, visited, () =>
+              controller.moveNorth()
+            );
+        }
+        if (!visited.has(controller.getPositionWest())) {
+          if (await controller.moveWest())
+            await robotDfs(robot, controller, visited, () =>
+              controller.moveEast()
+            );
+        }
+        await goBackCallback?.();
+      }
+    </script>
+  </body>
+</html>
