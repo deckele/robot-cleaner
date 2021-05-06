@@ -278,7 +278,11 @@
         };
         tile.onmousedown = (e) => {
           e.buttons === 1 && handleTileClicked(tile);
-          e.targetTouches?.foreach(handleTileClicked);
+        };
+        tile.ontouchstart = (e) => {
+          for (touchEvent of e.targetTouches) {
+            handleTileClicked(touchEvent.target);
+          }
         };
         return tile;
       }
@@ -335,6 +339,16 @@
       }
       function handleLoad() {
         handleFloorSizeSelect(10);
+        main.ontouchmove = (e) => {
+          for (touchEvent of e.targetTouches) {
+            const target = document.elementFromPoint(
+              touchEvent.clientX,
+              touchEvent.clientY
+            );
+            if (target?.classList.contains("grid-tile"))
+              handleTileClicked(target);
+          }
+        };
       }
       function handleAnimationSpeedChange(value) {
         main.style.setProperty(
