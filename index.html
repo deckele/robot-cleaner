@@ -19,24 +19,47 @@
         --in-front: 100;
         --animation-speed: 200ms;
       }
+      body {
+        margin: 0;
+      }
+      #app {
+        width: 100vw;
+        height: 100vh;
+        padding: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        box-sizing: border-box;
+      }
       aside {
-        position: absolute;
-        margin: 10px;
+        box-sizing: border-box;
+        margin-right: 10px;
         display: flex;
         flex-direction: column;
         gap: 10px;
       }
+      #main-wrapper {
+        position: relative;
+        flex: 1 1 100%;
+        max-width: calc(100vh - 20px);
+        max-height: 100%;
+      }
+      #dummy {
+        box-sizing: border-box;
+        position: relative;
+        padding-top: 100%;
+        height: 0;
+      }
       main {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
         display: inline-grid;
         grid-template-columns: repeat(var(--items-num), var(--items-fr));
         grid-template-rows: repeat(var(--items-num), var(--items-fr));
         gap: 2px;
-        height: 800px;
-        width: 800px;
       }
       input[type="radio"] + label {
         padding: 2px;
@@ -128,74 +151,93 @@
         position: absolute;
         transform: rotate(-135deg);
       }
+      @media only screen and (max-width: 768px) {
+        #app {
+          justify-content: flex-start;
+          align-items: stretch;
+          flex-direction: column;
+        }
+        #main-wrapper {
+          flex: initial;
+        }
+        aside {
+          margin-right: 0;
+          margin-bottom: 10px;
+        }
+      }
     </style>
   </head>
   <body onload="handleLoad();">
-    <aside>
-      <select
-        name="size-select"
-        id="size-select"
-        onchange="handleFloorSizeSelect(this.value);"
-      >
-        <option value="5">5X5</option>
-        <option value="10" selected>10X10</option>
-        <option value="20">20X20</option>
-        <option value="40">40X40</option>
-        <option value="80">80X80</option>
-      </select>
-      <div>
-        <input
-          type="radio"
-          name="tile-type"
-          class="tile-type"
-          id="wall"
-          value="wall"
-          checked
-        />
-        <label for="wall">Wall</label>
+    <div id="app">
+      <aside>
+        <select
+          name="size-select"
+          id="size-select"
+          onchange="handleFloorSizeSelect(this.value);"
+        >
+          <option value="5">5X5</option>
+          <option value="10" selected>10X10</option>
+          <option value="20">20X20</option>
+          <option value="40">40X40</option>
+          <option value="80">80X80</option>
+        </select>
+        <div>
+          <input
+            type="radio"
+            name="tile-type"
+            class="tile-type"
+            id="wall"
+            value="wall"
+            checked
+          />
+          <label for="wall">Wall</label>
+        </div>
+        <div>
+          <input
+            type="radio"
+            name="tile-type"
+            class="tile-type"
+            id="floor"
+            value="floor"
+          />
+          <label for="floor">Floor</label>
+        </div>
+        <div>
+          <input
+            type="radio"
+            name="tile-type"
+            class="tile-type"
+            id="start"
+            value="start"
+          />
+          <label for="start">Starting Position</label>
+        </div>
+        <div>
+          <input
+            id="animation-speed"
+            type="range"
+            list="tickmarks"
+            min="0"
+            max="2"
+            step="1"
+            onchange="handleAnimationSpeedChange(this.value)"
+          />
+          <datalist id="tickmarks">
+            <option value="0">Slow</option>
+            <option value="1">Moderate</option>
+            <option value="2">Fast</option>
+          </datalist>
+        </div>
+        <button disabled id="start-cleaning" onclick="cleanSpace()">
+          Start Cleaning!
+        </button>
+        <button id="clear" onclick="handleClear()">Clear</button>
+      </aside>
+      <div id="main-wrapper">
+        <div id="dummy"></div>
+        <main id="board"></main>
       </div>
-      <div>
-        <input
-          type="radio"
-          name="tile-type"
-          class="tile-type"
-          id="floor"
-          value="floor"
-        />
-        <label for="floor">Floor</label>
-      </div>
-      <div>
-        <input
-          type="radio"
-          name="tile-type"
-          class="tile-type"
-          id="start"
-          value="start"
-        />
-        <label for="start">Starting Position</label>
-      </div>
-      <div>
-        <input
-          id="animation-speed"
-          type="range"
-          list="tickmarks"
-          min="0"
-          max="2"
-          step="1"
-          onchange="handleAnimationSpeedChange(this.value)"
-        />
-        <datalist id="tickmarks">
-          <option value="0">Slow</option>
-          <option value="1">Moderate</option>
-          <option value="2">Fast</option>
-        </datalist>
-      </div>
-      <button disabled id="start-cleaning" onclick="cleanSpace()">
-        Start Cleaning!
-      </button>
-      <button id="clear" onclick="handleClear()">Clear</button>
-    </aside>
-    <main id="board"></main>
+    </div>
     <script>
       const main = document.getElementById("board");
       const sizeSelect = document.getElementById("size-select");
