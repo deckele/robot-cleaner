@@ -312,12 +312,14 @@
         start.appendChild(robot);
       }
       function handleTileClicked(tile) {
-        if (main.dataset.isCleaning) return;
+        const isCleaning = main.dataset.isCleaning === "true";
+        if (isCleaning) return;
         const tileTypeInput = document.querySelector(
           'input[type="radio"]:checked'
         );
         const value = tileTypeInput.value;
         if (value === tileTypes.start) {
+          getRobot()?.remove();
           const startingTile = getStartingTile();
           startingTile?.classList.replace(tileTypes.start, tileTypes.floor);
         }
@@ -530,7 +532,7 @@
         startButton.disabled = false;
         clearButton.disabled = false;
       }
-      function cleantoDirtyTiles() {
+      function cleanToDirtyTiles() {
         for (const tile of document.getElementsByClassName("grid-tile")) {
           tile.classList.replace(tileTypes.clean, tileTypes.floor);
         }
@@ -538,7 +540,7 @@
 
       async function cleanSpace() {
         disableInputs();
-        cleantoDirtyTiles();
+        cleanToDirtyTiles();
         const robot = new Robot();
         const startingTile = getStartingTile();
         paintRobotOnStart();
