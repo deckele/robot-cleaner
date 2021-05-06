@@ -530,9 +530,15 @@
         startButton.disabled = false;
         clearButton.disabled = false;
       }
+      function cleantoDirtyTiles() {
+        for (const tile of document.getElementsByClassName("grid-tile")) {
+          tile.classList.replace(tileTypes.clean, tileTypes.floor);
+        }
+      }
 
       async function cleanSpace() {
         disableInputs();
+        cleantoDirtyTiles();
         const robot = new Robot();
         const startingTile = getStartingTile();
         paintRobotOnStart();
