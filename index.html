@@ -272,8 +272,14 @@
         const { x, y } = fromIndexToXY(tileIndex);
         tile.dataset.x = x;
         tile.dataset.y = y;
-        tile.onmouseover = (e) => e.buttons === 1 && handleTileClicked(tile);
-        tile.onmousedown = (e) => e.buttons === 1 && handleTileClicked(tile);
+        tile.onmouseover = (e) => {
+          e.buttons === 1 && handleTileClicked(tile);
+          e.targetTouches?.foreach(handleTileClicked);
+        };
+        tile.onmousedown = (e) => {
+          e.buttons === 1 && handleTileClicked(tile);
+          e.targetTouches?.foreach(handleTileClicked);
+        };
         return tile;
       }
       function paintTile(tileIndex) {
