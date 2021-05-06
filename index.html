@@ -33,6 +33,7 @@
       }
       aside {
         box-sizing: border-box;
+        min-width: 160px;
         margin-right: 10px;
         display: flex;
         flex-direction: column;
@@ -44,18 +45,10 @@
         max-width: calc(100vh - 20px);
         max-height: 100%;
       }
-      #dummy {
-        box-sizing: border-box;
-        position: relative;
-        padding-top: 100%;
-        height: 0;
-      }
       main {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        width: 100%;
+        position: relative;
+        aspect-ratio: 1 / 1;
         display: inline-grid;
         grid-template-columns: repeat(var(--items-num), var(--items-fr));
         grid-template-rows: repeat(var(--items-num), var(--items-fr));
@@ -159,6 +152,7 @@
         }
         #main-wrapper {
           flex: initial;
+          max-width: calc(100vh - 260px);
         }
         aside {
           margin-right: 0;
@@ -234,7 +228,6 @@
         <button id="clear" onclick="handleClear()">Clear</button>
       </aside>
       <div id="main-wrapper">
-        <div id="dummy"></div>
         <main id="board"></main>
       </div>
     </div>
