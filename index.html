@@ -39,16 +39,11 @@
         flex-direction: column;
         gap: 10px;
       }
-      #main-wrapper {
-        position: relative;
-        flex: 1 1 100%;
-        max-width: calc(100vh - 20px);
-        max-height: 100%;
-      }
       main {
-        width: 100%;
-        position: relative;
-        aspect-ratio: 1 / 1;
+        width: calc(100vw - 160px - 20px);
+        height: calc(100vw - 160px - 20px);
+        max-width: calc(100vh - 20px);
+        max-height: calc(100vh - 20px);
         display: inline-grid;
         grid-template-columns: repeat(var(--items-num), var(--items-fr));
         grid-template-rows: repeat(var(--items-num), var(--items-fr));
@@ -150,9 +145,11 @@
           align-items: stretch;
           flex-direction: column;
         }
-        #main-wrapper {
-          flex: initial;
+        main {
+          width: calc(100vw - 20px);
+          height: calc(100vw - 20px);
           max-width: calc(100vh - 260px);
+          max-height: calc(100vh - 260px);
         }
         aside {
           margin-right: 0;
@@ -227,9 +224,7 @@
         </button>
         <button id="clear" onclick="handleClear()">Clear</button>
       </aside>
-      <div id="main-wrapper">
-        <main id="board"></main>
-      </div>
+      <main id="board"></main>
     </div>
     <script>
       const main = document.getElementById("board");
