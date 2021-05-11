@@ -33,29 +33,17 @@
       }
       aside {
         box-sizing: border-box;
+        min-width: 160px;
         margin-right: 10px;
         display: flex;
         flex-direction: column;
         gap: 10px;
       }
-      #main-wrapper {
-        position: relative;
-        flex: 1 1 100%;
-        max-width: calc(100vh - 20px);
-        max-height: 100%;
-      }
-      #dummy {
-        box-sizing: border-box;
-        position: relative;
-        padding-top: 100%;
-        height: 0;
-      }
       main {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        width: calc(100vw - 160px - 20px);
+        height: calc(100vw - 160px - 20px);
+        max-width: calc(100vh - 20px);
+        max-height: calc(100vh - 20px);
         display: inline-grid;
         grid-template-columns: repeat(var(--items-num), var(--items-fr));
         grid-template-rows: repeat(var(--items-num), var(--items-fr));
@@ -157,8 +145,11 @@
           align-items: stretch;
           flex-direction: column;
         }
-        #main-wrapper {
-          flex: initial;
+        main {
+          width: calc(100vw - 20px);
+          height: calc(100vw - 20px);
+          max-width: calc(100vh - 260px);
+          max-height: calc(100vh - 260px);
         }
         aside {
           margin-right: 0;
@@ -233,10 +224,7 @@
         </button>
         <button id="clear" onclick="handleClear()">Clear</button>
       </aside>
-      <div id="main-wrapper">
-        <div id="dummy"></div>
-        <main id="board"></main>
-      </div>
+      <main id="board"></main>
     </div>
     <script>
       const main = document.getElementById("board");
@@ -284,8 +272,18 @@
         const { x, y } = fromIndexToXY(tileIndex);
         tile.dataset.x = x;
         tile.dataset.y = y;
-        tile.onmouseover = (e) => e.buttons === 1 && handleTileClicked(tile);
-        tile.onmousedown = (e) => e.buttons === 1 && handleTileClicked(tile);
+        tile.onmouseover = (e) => {
+          e.buttons === 1 && handleTileClicked(tile);
+          e.targetTouches?.foreach(handleTileClicked);
+        };
+        tile.onmousedown = (e) => {
+          e.buttons === 1 && handleTileClicked(tile);
+        };
+        tile.ontouchstart = (e) => {
+          for (touchEvent of e.targetTouches) {
+            handleTileClicked(touchEvent.target);
+          }
+        };
         return tile;
       }
       function paintTile(tileIndex) {
@@ -314,12 +312,14 @@
         start.appendChild(robot);
       }
       function handleTileClicked(tile) {
-        if (main.dataset.isCleaning) return;
+        const isCleaning = main.dataset.isCleaning === "true";
+        if (isCleaning) return;
         const tileTypeInput = document.querySelector(
           'input[type="radio"]:checked'
         );
         const value = tileTypeInput.value;
         if (value === tileTypes.start) {
+          getRobot()?.remove();
           const startingTile = getStartingTile();
           startingTile?.classList.replace(tileTypes.start, tileTypes.floor);
         }
@@ -341,6 +341,16 @@
       }
       function handleLoad() {
         handleFloorSizeSelect(10);
+        main.ontouchmove = (e) => {
+          for (touchEvent of e.targetTouches) {
+            const target = document.elementFromPoint(
+              touchEvent.clientX,
+              touchEvent.clientY
+            );
+            if (target?.classList.contains("grid-tile"))
+              handleTileClicked(target);
+          }
+        };
       }
       function handleAnimationSpeedChange(value) {
         main.style.setProperty(
@@ -522,9 +532,15 @@
         startButton.disabled = false;
         clearButton.disabled = false;
       }
+      function cleanToDirtyTiles() {
+        for (const tile of document.getElementsByClassName("grid-tile")) {
+          tile.classList.replace(tileTypes.clean, tileTypes.floor);
+        }
+      }
 
       async function cleanSpace() {
         disableInputs();
+        cleanToDirtyTiles();
         const robot = new Robot();
         const startingTile = getStartingTile();
         paintRobotOnStart();
