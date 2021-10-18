@@ -1,6 +1,6 @@
 /**************************
  * interface Robot {
- *   move(): Promise<void>;
+ *   move(): Promise<boolean>;
  *   rotate(): Promise<void>;
  *   cleanSpot(): void;
  * }
