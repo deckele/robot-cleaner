@@ -158,13 +158,13 @@
       }
     </style>
   </head>
-  <body onload="handleLoad();">
+  <body onload="mainModule.handleLoad();">
     <div id="app">
       <aside>
         <select
           name="size-select"
           id="size-select"
-          onchange="handleFloorSizeSelect(this.value);"
+          onchange="mainModule.handleFloorSizeSelect(this.value);"
         >
           <option value="5">5X5</option>
           <option value="10" selected>10X10</option>
@@ -211,7 +211,7 @@
             min="0"
             max="2"
             step="1"
-            onchange="handleAnimationSpeedChange(this.value)"
+            onchange="mainModule.handleAnimationSpeedChange(this.value)"
           />
           <datalist id="tickmarks">
             <option value="0">Slow</option>
@@ -219,272 +219,286 @@
             <option value="2">Fast</option>
           </datalist>
         </div>
-        <button disabled id="start-cleaning" onclick="cleanSpace(cleanFloor)">
+        <button
+          disabled
+          id="start-cleaning"
+          onclick="mainModule.cleanSpace(cleanFloor)"
+        >
           Start Cleaning!
         </button>
-        <button id="clear" onclick="handleClear()">Clear</button>
+        <button id="clear" onclick="mainModule.handleClear()">Clear</button>
       </aside>
       <main id="board"></main>
     </div>
     <script>
-      const main = document.getElementById("board");
-      const sizeSelect = document.getElementById("size-select");
-      const startButton = document.getElementById("start-cleaning");
-      const clearButton = document.getElementById("clear");
-      const speedSlider = document.getElementById("animation-speed");
+      mainModule = {};
+      ((module) => {
+        Object.assign(module, {
+          handleClear,
+          cleanSpace,
+          handleAnimationSpeedChange,
+          handleFloorSizeSelect,
+          handleLoad,
+        });
+        const main = document.getElementById("board");
+        const sizeSelect = document.getElementById("size-select");
+        const startButton = document.getElementById("start-cleaning");
+        const clearButton = document.getElementById("clear");
+        const speedSlider = document.getElementById("animation-speed");
 
-      const animationSpeedSliderMap = {
-        0: "500ms",
-        1: "100ms",
-        2: "50ms",
-      };
-      const tileTypes = {
-        floor: "floor",
-        wall: "wall",
-        start: "start",
-        robot: "robot",
-        clean: "clean",
-      };
-      const Directions = {
-        north: 0,
-        east: 1,
-        south: 2,
-        west: 3,
-      };
-      const numOfDirections = Object.keys(Directions).length;
+        const animationSpeedSliderMap = {
+          0: "500ms",
+          1: "100ms",
+          2: "50ms",
+        };
+        const tileTypes = {
+          floor: "floor",
+          wall: "wall",
+          start: "start",
+          robot: "robot",
+          clean: "clean",
+        };
+        const Directions = {
+          north: 0,
+          east: 1,
+          south: 2,
+          west: 3,
+        };
+        const numOfDirections = Object.keys(Directions).length;
 
-      function getFloorSize() {
-        return Number(sizeSelect.value);
-      }
-      function getStartingTile() {
-        return document.querySelector(".grid-tile.start");
-      }
-      function getRobot() {
-        return document.getElementById("robot");
-      }
-      function getTileByXY(x, y) {
-        return document.querySelector(
-          `.grid-tile[data-x="${x}"][data-y="${y}"]`
-        );
-      }
-      function fromIndexToXY(index) {
-        const size = getFloorSize();
-        const x = index % size;
-        const y = (index - x) / size;
-        return { x, y };
-      }
-      function createTile(tileIndex) {
-        const tile = document.createElement("div");
-        tile.classList.add("grid-tile", tileTypes.floor);
-        const { x, y } = fromIndexToXY(tileIndex);
-        tile.dataset.x = x;
-        tile.dataset.y = y;
-        tile.onmouseover = (e) => {
-          e.buttons === 1 && handleTileClicked(tile);
-          e.targetTouches?.foreach(handleTileClicked);
-        };
-        tile.onmousedown = (e) => {
-          e.buttons === 1 && handleTileClicked(tile);
-        };
-        tile.ontouchstart = (e) => {
-          for (touchEvent of e.targetTouches) {
-            handleTileClicked(touchEvent.target);
-          }
-        };
-        return tile;
-      }
-      function paintTile(tileIndex) {
-        const tile = createTile(tileIndex);
-        main.appendChild(tile);
-      }
-      function createRobot() {
-        const startingTile = getStartingTile();
-        const robot = document.createElement("div");
-        robot.id = "robot";
-        robot.dataset.x = Number(startingTile.dataset.x);
-        robot.dataset.y = Number(startingTile.dataset.y);
-        robot.dataset.rotation = Directions.north;
-        const arrowRotater = document.createElement("div");
-        arrowRotater.id = "arrow-rotater";
-        const arrow = document.createElement("div");
-        arrow.id = "arrow";
-        arrowRotater.appendChild(arrow);
-        robot.appendChild(arrowRotater);
-        return robot;
-      }
-      function destroyRobot() {
-        const robot = getRobot();
-        if (!robot) return;
-        robot.parentElement.removeChild(robot);
-        console.log("robot destroyed!");
-      }
-      function paintRobotOnStart() {
-        destroyRobot();
-        main.style.setProperty("--robot-rotation", "0deg");
-        const start = getStartingTile();
-        if (!start) throw "error: no starting position!";
-        const robot = createRobot();
-        start.appendChild(robot);
-      }
-
-      function handleTileClicked(tile) {
-        const isCleaning = main.dataset.isCleaning === "true";
-        if (isCleaning) return;
-        const tileTypeInput = document.querySelector(
-          'input[type="radio"]:checked'
-        );
-        const value = tileTypeInput.value;
-        if (value === tileTypes.start) {
-          getRobot()?.remove();
-          const startingTile = getStartingTile();
-          startingTile?.classList.replace(tileTypes.start, tileTypes.floor);
+        function getFloorSize() {
+          return Number(sizeSelect.value);
         }
-        tile.className = "";
-        tile.classList.add("grid-tile", value);
-        startButton.disabled = getStartingTile() ? false : true;
-      }
-      function handleFloorSizeSelect(value) {
-        startButton.disabled = true;
-        main.textContent = "";
-        main.style.setProperty("--items-num", value);
-        main.style.setProperty("--items-fr", value + "fr");
-        for (let i = 0; i < value ** 2; i++) {
-          paintTile(i);
+        function getStartingTile() {
+          return document.querySelector(".grid-tile.start");
         }
-      }
-      function handleClear() {
-        handleFloorSizeSelect(getFloorSize());
-      }
-      function handleLoad() {
-        handleFloorSizeSelect(10);
-        main.ontouchmove = (e) => {
-          for (touchEvent of e.targetTouches) {
-            const target = document.elementFromPoint(
-              touchEvent.clientX,
-              touchEvent.clientY
-            );
-            if (target?.classList.contains("grid-tile"))
-              handleTileClicked(target);
-          }
-        };
-      }
-      function handleAnimationSpeedChange(value) {
-        main.style.setProperty(
-          "--animation-speed",
-          animationSpeedSliderMap[value]
-        );
-      }
-
-      class Robot {
-        move() {
-          const robot = getRobot();
-          let x = Number(robot.dataset.x);
-          let y = Number(robot.dataset.y);
-          const currentTile = getTileByXY(x, y);
-          const rotation = Number(robot.dataset.rotation);
+        function getRobot() {
+          return document.getElementById("robot");
+        }
+        function getTileByXY(x, y) {
+          return document.querySelector(
+            `.grid-tile[data-x="${x}"][data-y="${y}"]`
+          );
+        }
+        function fromIndexToXY(index) {
           const size = getFloorSize();
-          switch (rotation) {
-            case Directions.north:
-              y--;
-              break;
-            case Directions.east:
-              x++;
-              break;
-            case Directions.south:
-              y++;
-              break;
-            case Directions.west:
-              x--;
-              break;
-          }
-          const nextTile = getTileByXY(x, y);
+          const x = index % size;
+          const y = (index - x) / size;
+          return { x, y };
+        }
+        function createTile(tileIndex) {
+          const tile = document.createElement("div");
+          tile.classList.add("grid-tile", tileTypes.floor);
+          const { x, y } = fromIndexToXY(tileIndex);
+          tile.dataset.x = x;
+          tile.dataset.y = y;
+          tile.onmouseover = (e) => {
+            e.buttons === 1 && handleTileClicked(tile);
+            e.targetTouches?.foreach(handleTileClicked);
+          };
+          tile.onmousedown = (e) => {
+            e.buttons === 1 && handleTileClicked(tile);
+          };
+          tile.ontouchstart = (e) => {
+            for (touchEvent of e.targetTouches) {
+              handleTileClicked(touchEvent.target);
+            }
+          };
+          return tile;
+        }
+        function paintTile(tileIndex) {
+          const tile = createTile(tileIndex);
+          main.appendChild(tile);
+        }
+        function createRobot() {
+          const startingTile = getStartingTile();
+          const robot = document.createElement("div");
+          robot.id = "robot";
+          robot.dataset.x = Number(startingTile.dataset.x);
+          robot.dataset.y = Number(startingTile.dataset.y);
+          robot.dataset.rotation = Directions.north;
+          const arrowRotater = document.createElement("div");
+          arrowRotater.id = "arrow-rotater";
+          const arrow = document.createElement("div");
+          arrow.id = "arrow";
+          arrowRotater.appendChild(arrow);
+          robot.appendChild(arrowRotater);
+          return robot;
+        }
+        function destroyRobot() {
+          const robot = getRobot();
+          if (!robot) return;
+          robot.parentElement.removeChild(robot);
+          console.log("robot destroyed!");
+        }
+        function paintRobotOnStart() {
+          destroyRobot();
+          main.style.setProperty("--robot-rotation", "0deg");
+          const start = getStartingTile();
+          if (!start) throw "error: no starting position!";
+          const robot = createRobot();
+          start.appendChild(robot);
+        }
 
-          // if out of bounds or wall, return false;
-          if (!nextTile || nextTile.classList.contains(tileTypes.wall))
-            return false;
-          robot.dataset.x = x;
-          robot.dataset.y = y;
-          console.log("moved to: ", { x, y });
-          const { x: prevX, y: prevY } = robot.getBoundingClientRect();
-          nextTile.appendChild(robot);
-          const { x: currX, y: currY } = robot.getBoundingClientRect();
-          return new Promise((resolve) => {
-            requestAnimationFrame(() => {
-              robot.style.transition = "none";
-              main.style.setProperty("--robot-x", prevX - currX + "px");
-              main.style.setProperty("--robot-y", prevY - currY + "px");
+        function handleTileClicked(tile) {
+          const isCleaning = main.dataset.isCleaning === "true";
+          if (isCleaning) return;
+          const tileTypeInput = document.querySelector(
+            'input[type="radio"]:checked'
+          );
+          const value = tileTypeInput.value;
+          if (value === tileTypes.start) {
+            getRobot()?.remove();
+            const startingTile = getStartingTile();
+            startingTile?.classList.replace(tileTypes.start, tileTypes.floor);
+          }
+          tile.className = "";
+          tile.classList.add("grid-tile", value);
+          startButton.disabled = getStartingTile() ? false : true;
+        }
+        function handleFloorSizeSelect(value) {
+          startButton.disabled = true;
+          main.textContent = "";
+          main.style.setProperty("--items-num", value);
+          main.style.setProperty("--items-fr", value + "fr");
+          for (let i = 0; i < value ** 2; i++) {
+            paintTile(i);
+          }
+        }
+        function handleClear() {
+          handleFloorSizeSelect(getFloorSize());
+        }
+        function handleLoad() {
+          handleFloorSizeSelect(10);
+          main.ontouchmove = (e) => {
+            for (touchEvent of e.targetTouches) {
+              const target = document.elementFromPoint(
+                touchEvent.clientX,
+                touchEvent.clientY
+              );
+              if (target?.classList.contains("grid-tile"))
+                handleTileClicked(target);
+            }
+          };
+        }
+        function handleAnimationSpeedChange(value) {
+          main.style.setProperty(
+            "--animation-speed",
+            animationSpeedSliderMap[value]
+          );
+        }
+
+        class Robot {
+          move() {
+            const robot = getRobot();
+            let x = Number(robot.dataset.x);
+            let y = Number(robot.dataset.y);
+            const currentTile = getTileByXY(x, y);
+            const rotation = Number(robot.dataset.rotation);
+            const size = getFloorSize();
+            switch (rotation) {
+              case Directions.north:
+                y--;
+                break;
+              case Directions.east:
+                x++;
+                break;
+              case Directions.south:
+                y++;
+                break;
+              case Directions.west:
+                x--;
+                break;
+            }
+            const nextTile = getTileByXY(x, y);
+
+            // if out of bounds or wall, return false;
+            if (!nextTile || nextTile.classList.contains(tileTypes.wall))
+              return false;
+            robot.dataset.x = x;
+            robot.dataset.y = y;
+            console.log("moved to: ", { x, y });
+            const { x: prevX, y: prevY } = robot.getBoundingClientRect();
+            nextTile.appendChild(robot);
+            const { x: currX, y: currY } = robot.getBoundingClientRect();
+            return new Promise((resolve) => {
+              requestAnimationFrame(() => {
+                robot.style.transition = "none";
+                main.style.setProperty("--robot-x", prevX - currX + "px");
+                main.style.setProperty("--robot-y", prevY - currY + "px");
+                function listener() {
+                  robot.removeEventListener("transitionend", listener);
+                  resolve(true);
+                }
+                requestAnimationFrame(() => {
+                  robot.style.transition =
+                    "transform var(--animation-speed) linear";
+                  robot.addEventListener("transitionend", listener);
+                  main.style.setProperty("--robot-x", "0px");
+                  main.style.setProperty("--robot-y", "0px");
+                });
+              });
+            });
+          }
+          rotate() {
+            const robot = getRobot();
+            const rotation = Number(robot.dataset.rotation);
+            robot.dataset.rotation = (rotation + 1) % numOfDirections;
+            return new Promise((resolve) => {
               function listener() {
                 robot.removeEventListener("transitionend", listener);
                 resolve(true);
               }
               requestAnimationFrame(() => {
-                robot.style.transition =
-                  "transform var(--animation-speed) linear";
                 robot.addEventListener("transitionend", listener);
-                main.style.setProperty("--robot-x", "0px");
-                main.style.setProperty("--robot-y", "0px");
+                const currentRotation =
+                  parseInt(
+                    getComputedStyle(main).getPropertyValue("--robot-rotation")
+                  ) || 0;
+                const newRotation = currentRotation + 90;
+                main.style.setProperty("--robot-rotation", newRotation + "deg");
               });
             });
-          });
+          }
+          cleanSpot() {
+            const robot = getRobot();
+            let x = Number(robot.dataset.x);
+            let y = Number(robot.dataset.y);
+            const currentTile = getTileByXY(x, y);
+            currentTile.classList.replace(tileTypes.floor, tileTypes.clean);
+          }
         }
-        rotate() {
-          const robot = getRobot();
-          const rotation = Number(robot.dataset.rotation);
-          robot.dataset.rotation = (rotation + 1) % numOfDirections;
-          return new Promise((resolve) => {
-            function listener() {
-              robot.removeEventListener("transitionend", listener);
-              resolve(true);
-            }
-            requestAnimationFrame(() => {
-              robot.addEventListener("transitionend", listener);
-              const currentRotation =
-                parseInt(
-                  getComputedStyle(main).getPropertyValue("--robot-rotation")
-                ) || 0;
-              const newRotation = currentRotation + 90;
-              main.style.setProperty("--robot-rotation", newRotation + "deg");
-            });
-          });
-        }
-        cleanSpot() {
-          const robot = getRobot();
-          let x = Number(robot.dataset.x);
-          let y = Number(robot.dataset.y);
-          const currentTile = getTileByXY(x, y);
-          currentTile.classList.replace(tileTypes.floor, tileTypes.clean);
-        }
-      }
 
-      function disableInputs() {
-        const robot = getRobot();
-        main.dataset.isCleaning = true;
-        sizeSelect.disabled = true;
-        startButton.disabled = true;
-        clearButton.disabled = true;
-      }
-      function enableInputs() {
-        const robot = getRobot();
-        main.dataset.isCleaning = false;
-        sizeSelect.disabled = false;
-        startButton.disabled = false;
-        clearButton.disabled = false;
-      }
-      function cleanToDirtyTiles() {
-        for (const tile of document.getElementsByClassName("grid-tile")) {
-          tile.classList.replace(tileTypes.clean, tileTypes.floor);
+        function disableInputs() {
+          const robot = getRobot();
+          main.dataset.isCleaning = true;
+          sizeSelect.disabled = true;
+          startButton.disabled = true;
+          clearButton.disabled = true;
         }
-      }
+        function enableInputs() {
+          const robot = getRobot();
+          main.dataset.isCleaning = false;
+          sizeSelect.disabled = false;
+          startButton.disabled = false;
+          clearButton.disabled = false;
+        }
+        function cleanToDirtyTiles() {
+          for (const tile of document.getElementsByClassName("grid-tile")) {
+            tile.classList.replace(tileTypes.clean, tileTypes.floor);
+          }
+        }
 
-      async function cleanSpace(cleanFunc) {
-        disableInputs();
-        cleanToDirtyTiles();
-        const startingTile = getStartingTile();
-        paintRobotOnStart();
-        const robot = new Robot();
-        await cleanFunc(robot);
-        enableInputs();
-      }
+        async function cleanSpace(cleanFunc) {
+          disableInputs();
+          cleanToDirtyTiles();
+          const startingTile = getStartingTile();
+          paintRobotOnStart();
+          const robot = new Robot();
+          await cleanFunc(robot);
+          enableInputs();
+        }
+      })(mainModule);
     </script>
     <script src="index.js"></script>
   </body>

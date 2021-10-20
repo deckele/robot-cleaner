@@ -12,6 +12,14 @@ async function cleanFloor(robot) {
   await robotDfs(robot, controller, visited, null);
 }
 
+const Directions = {
+  north: 0,
+  east: 1,
+  south: 2,
+  west: 3,
+};
+const numOfDirections = Object.keys(Directions).length;
+
 class RobotController {
   rotation = Directions.north;
   get position() {
