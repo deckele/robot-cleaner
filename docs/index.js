@@ -2,7 +2,7 @@
  * interface Robot {
  *   move(): Promise<boolean>;
  *   rotate(): Promise<void>;
- *   cleanSpot(): void;
+ *   cleanSpot(): Promise<void>;
  * }
  **************************/
 
@@ -88,7 +88,7 @@ class RobotController {
 }
 
 async function robotDfs(robot, controller, visited, goBackCallback) {
-  robot.cleanSpot();
+  await robot.cleanSpot();
   visited.add(controller.position);
 
   if (!visited.has(controller.getPositionNorth())) {

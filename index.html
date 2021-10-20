@@ -226,6 +226,9 @@
         >
           Start Cleaning!
         </button>
+        <button disabled id="stop-cleaning" onclick="mainModule.stopCleaning()">
+          Stop Cleaning
+        </button>
         <button id="clear" onclick="mainModule.handleClear()">Clear</button>
       </aside>
       <main id="board"></main>
@@ -236,6 +239,8 @@
         Object.assign(module, {
           handleClear,
           cleanSpace,
+          stopCleaning,
+          resumeCleaning,
           handleAnimationSpeedChange,
           handleFloorSizeSelect,
           handleLoad,
@@ -243,6 +248,7 @@
         const main = document.getElementById("board");
         const sizeSelect = document.getElementById("size-select");
         const startButton = document.getElementById("start-cleaning");
+        const stopButton = document.getElementById("stop-cleaning");
         const clearButton = document.getElementById("clear");
         const speedSlider = document.getElementById("animation-speed");
 
@@ -389,7 +395,8 @@
         }
 
         class Robot {
-          move() {
+          async move() {
+            await waitOnStopped();
             const robot = getRobot();
             let x = Number(robot.dataset.x);
             let y = Number(robot.dataset.y);
@@ -440,7 +447,8 @@
               });
             });
           }
-          rotate() {
+          async rotate() {
+            await waitOnStopped();
             const robot = getRobot();
             const rotation = Number(robot.dataset.rotation);
             robot.dataset.rotation = (rotation + 1) % numOfDirections;
@@ -460,7 +468,8 @@
               });
             });
           }
-          cleanSpot() {
+          async cleanSpot() {
+            await waitOnStopped();
             const robot = getRobot();
             let x = Number(robot.dataset.x);
             let y = Number(robot.dataset.y);
@@ -475,6 +484,7 @@
           sizeSelect.disabled = true;
           startButton.disabled = true;
           clearButton.disabled = true;
+          stopButton.disabled = false;
         }
         function enableInputs() {
           const robot = getRobot();
@@ -482,6 +492,7 @@
           sizeSelect.disabled = false;
           startButton.disabled = false;
           clearButton.disabled = false;
+          stopButton.disabled = true;
         }
         function cleanToDirtyTiles() {
           for (const tile of document.getElementsByClassName("grid-tile")) {
@@ -497,6 +508,33 @@
           const robot = new Robot();
           await cleanFunc(robot);
           enableInputs();
+        }
+
+        function stopCleaning() {
+          const robot = getRobot();
+          if (!robot) return;
+          robot.stopped = true;
+          stopButton.innerText = "Resume Cleaning";
+          stopButton.onclick = resumeCleaning;
+        }
+
+        function resumeCleaning() {
+          const robot = getRobot();
+          if (!robot || !robot.resume instanceof Function) return;
+          robot.stopped = false;
+          stopButton.innerText = "Stop Cleaning";
+          stopButton.onclick = stopCleaning;
+          robot.resume();
+        }
+
+        async function waitOnStopped() {
+          const robot = getRobot();
+          if (!robot) return;
+          if (robot.stopped) {
+            await new Promise((resolve) => {
+              robot.resume = resolve;
+            });
+          }
         }
       })(mainModule);
     </script>
