@@ -2,7 +2,7 @@
  * interface Robot {
  *   move(): Promise<boolean>;
  *   rotate(): Promise<void>;
- *   cleanSpot(): void;
+ *   cleanSpot(): Promise<void>;
  * }
  **************************/
 

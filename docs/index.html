@@ -372,6 +372,8 @@
           }
         }
         function handleClear() {
+          destroyRobot();
+          enableInputs();
           handleFloorSizeSelect(getFloorSize());
         }
         function handleLoad() {
@@ -484,14 +486,15 @@
           sizeSelect.disabled = true;
           startButton.disabled = true;
           clearButton.disabled = true;
+          initStopButton();
           stopButton.disabled = false;
         }
         function enableInputs() {
-          const robot = getRobot();
           main.dataset.isCleaning = false;
           sizeSelect.disabled = false;
           startButton.disabled = false;
           clearButton.disabled = false;
+          initStopButton();
           stopButton.disabled = true;
         }
         function cleanToDirtyTiles() {
@@ -516,15 +519,23 @@
           robot.stopped = true;
           stopButton.innerText = "Resume Cleaning";
           stopButton.onclick = resumeCleaning;
+          startButton.disabled = false;
+          clearButton.disabled = false;
         }
 
         function resumeCleaning() {
           const robot = getRobot();
           if (!robot || !robot.resume instanceof Function) return;
           robot.stopped = false;
+          initStopButton();
+          startButton.disabled = true;
+          clearButton.disabled = true;
+          robot.resume();
+        }
+
+        function initStopButton() {
           stopButton.innerText = "Stop Cleaning";
           stopButton.onclick = stopCleaning;
-          robot.resume();
         }
 
         async function waitOnStopped() {
