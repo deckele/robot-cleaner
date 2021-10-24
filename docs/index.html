@@ -226,9 +226,7 @@
         >
           Start Cleaning!
         </button>
-        <button disabled id="stop-cleaning" onclick="mainModule.stopCleaning()">
-          Stop Cleaning
-        </button>
+        <button disabled id="pause-cleaning">Pause Cleaning</button>
         <button id="clear" onclick="mainModule.handleClear()">Clear</button>
       </aside>
       <main id="board"></main>
@@ -239,8 +237,6 @@
         Object.assign(module, {
           handleClear,
           cleanSpace,
-          stopCleaning,
-          resumeCleaning,
           handleAnimationSpeedChange,
           handleFloorSizeSelect,
           handleLoad,
@@ -248,7 +244,7 @@
         const main = document.getElementById("board");
         const sizeSelect = document.getElementById("size-select");
         const startButton = document.getElementById("start-cleaning");
-        const stopButton = document.getElementById("stop-cleaning");
+        const stopButton = document.getElementById("pause-cleaning");
         const clearButton = document.getElementById("clear");
         const speedSlider = document.getElementById("animation-speed");
 
@@ -275,16 +271,32 @@
         function getFloorSize() {
           return Number(sizeSelect.value);
         }
+        function getAllWallsXY() {
+          return Array.from(document.querySelectorAll(".grid-tile.wall")).map(
+            (tile) => [Number(tile.dataset.x), Number(tile.dataset.y)]
+          );
+        }
+        function getWallsLayoutMap() {
+          const allWalls = getAllWallsXY();
+          return allWalls.reduce((acc, [x, y]) => {
+            acc[`${x},${y}`] = true;
+            return acc;
+          }, {});
+        }
         function getStartingTile() {
           return document.querySelector(".grid-tile.start");
         }
-        function getRobot() {
+        function getRobotUIElement() {
           return document.getElementById("robot");
         }
         function getTileByXY(x, y) {
           return document.querySelector(
             `.grid-tile[data-x="${x}"][data-y="${y}"]`
           );
+        }
+        function getStartingTileXY() {
+          const tile = getStartingTile();
+          return [Number(tile.dataset.x), Number(tile.dataset.y)];
         }
         function fromIndexToXY(index) {
           const size = getFloorSize();
@@ -332,7 +344,7 @@
           return robot;
         }
         function destroyRobot() {
-          const robot = getRobot();
+          const robot = getRobotUIElement();
           if (!robot) return;
           robot.parentElement.removeChild(robot);
           console.log("robot destroyed!");
@@ -354,7 +366,7 @@
           );
           const value = tileTypeInput.value;
           if (value === tileTypes.start) {
-            getRobot()?.remove();
+            getRobotUIElement()?.remove();
             const startingTile = getStartingTile();
             startingTile?.classList.replace(tileTypes.start, tileTypes.floor);
           }
@@ -396,10 +408,9 @@
           );
         }
 
-        class Robot {
+        class RobotUIController {
           async move() {
-            await waitOnStopped();
-            const robot = getRobot();
+            const robot = getRobotUIElement();
             let x = Number(robot.dataset.x);
             let y = Number(robot.dataset.y);
             const currentTile = getTileByXY(x, y);
@@ -426,7 +437,6 @@
               return false;
             robot.dataset.x = x;
             robot.dataset.y = y;
-            console.log("moved to: ", { x, y });
             const { x: prevX, y: prevY } = robot.getBoundingClientRect();
             nextTile.appendChild(robot);
             const { x: currX, y: currY } = robot.getBoundingClientRect();
@@ -450,8 +460,7 @@
             });
           }
           async rotate() {
-            await waitOnStopped();
-            const robot = getRobot();
+            const robot = getRobotUIElement();
             const rotation = Number(robot.dataset.rotation);
             robot.dataset.rotation = (rotation + 1) % numOfDirections;
             return new Promise((resolve) => {
@@ -471,8 +480,7 @@
             });
           }
           async cleanSpot() {
-            await waitOnStopped();
-            const robot = getRobot();
+            const robot = getRobotUIElement();
             let x = Number(robot.dataset.x);
             let y = Number(robot.dataset.y);
             const currentTile = getTileByXY(x, y);
@@ -480,8 +488,111 @@
           }
         }
 
+        const RobotTaskManagerStates = {
+          idle: "idle",
+          active: "active",
+        };
+        class RobotTaskManager {
+          wallsLayout = getWallsLayoutMap();
+          floorSize = getFloorSize();
+          state = RobotTaskManagerStates.idle;
+          taskQueue = [];
+          taskIndex = 0;
+          constructor({
+            robotUIController,
+            onFinish,
+            initialX,
+            initialY,
+            initialDirection,
+          }) {
+            this.robot = robotUIController;
+            this.onFinish = onFinish;
+            this.x = initialX;
+            this.y = initialY;
+            this.direction = initialDirection;
+          }
+          move() {
+            let newX = this.x,
+              newY = this.y;
+            switch (this.direction) {
+              case 0:
+                newY--;
+                break;
+              case 1:
+                newX++;
+                break;
+              case 2:
+                newY++;
+                break;
+              case 3:
+                newX--;
+                break;
+            }
+            if (
+              newX < 0 ||
+              newY < 0 ||
+              newX >= this.floorSize ||
+              newY >= this.floorSize
+            ) {
+              return false;
+            }
+            if (this.wallsLayout[`${newX},${newY}`]) {
+              return false;
+            }
+            this.taskQueue.push(this.robot.move);
+            this.x = newX;
+            this.y = newY;
+            return true;
+          }
+          rotate() {
+            this.direction = (this.direction + 1) % numOfDirections;
+            this.taskQueue.push(this.robot.rotate);
+          }
+          cleanSpot() {
+            this.taskQueue.push(this.robot.cleanSpot);
+          }
+          // return true when all tasks are done;
+          async startTasks() {
+            if (this.taskQueue.length === 0) {
+              this.onFinish();
+              return true;
+            }
+            if (this.state !== RobotTaskManagerStates.idle) return false;
+            this.state = RobotTaskManagerStates.active;
+            for (; this.taskIndex < this.taskQueue.length; this.taskIndex++) {
+              if (this.state !== RobotTaskManagerStates.active) return false;
+              await this.taskQueue[this.taskIndex]();
+            }
+            this.onFinish();
+            return true;
+          }
+          stopTasks() {
+            if (this.state === RobotTaskManagerStates.active)
+              this.state = RobotTaskManagerStates.idle;
+          }
+          clearTasks() {
+            this.stoptasks();
+            this.taskQueue.length = 0;
+            this.taskIndex = 0;
+          }
+        }
+
+        class Robot {
+          constructor(robotTaskManager) {
+            this.robot = robotTaskManager;
+          }
+          move() {
+            return this.robot.move();
+          }
+          rotate() {
+            return this.robot.rotate();
+          }
+          cleanSpot() {
+            return this.robot.cleanSpot();
+          }
+        }
+
         function disableInputs() {
-          const robot = getRobot();
           main.dataset.isCleaning = true;
           sizeSelect.disabled = true;
           startButton.disabled = true;
@@ -503,49 +614,55 @@
           }
         }
 
-        async function cleanSpace(cleanFunc) {
+        function cleanSpace(cleanFunc) {
           disableInputs();
           cleanToDirtyTiles();
-          const startingTile = getStartingTile();
           paintRobotOnStart();
-          const robot = new Robot();
-          await cleanFunc(robot);
-          enableInputs();
+          const [initialX, initialY] = getStartingTileXY();
+          const robotUIController = new RobotUIController();
+          const robotTaskManager = new RobotTaskManager({
+            robotUIController,
+            onFinish: enableInputs,
+            initialX,
+            initialY,
+            initialDirection: Directions.north,
+          });
+          const robot = new Robot(robotTaskManager);
+          try {
+            cleanFunc(robot);
+          } catch (e) {
+            console.log("Error in robot script: ", e);
+          }
+          resumeCleaning(robotTaskManager);
         }
 
-        function stopCleaning() {
-          const robot = getRobot();
+        const PauseButtonStates = {
+          pauseCleaning: "Pause Cleaning",
+          resumeCleaning: "Resume Cleaning",
+        };
+        function pauseCleaning(robotTaskManager) {
+          const robot = getRobotUIElement();
           if (!robot) return;
-          robot.stopped = true;
-          stopButton.innerText = "Resume Cleaning";
-          stopButton.onclick = resumeCleaning;
+          stopButton.innerText = PauseButtonStates.resumeCleaning;
+          stopButton.onclick = () => resumeCleaning(robotTaskManager);
           startButton.disabled = false;
           clearButton.disabled = false;
+          robotTaskManager.stopTasks();
         }
 
-        function resumeCleaning() {
-          const robot = getRobot();
-          if (!robot || !robot.resume instanceof Function) return;
-          robot.stopped = false;
-          initStopButton();
+        function resumeCleaning(robotTaskManager) {
+          const robot = getRobotUIElement();
+          if (!robot) return;
+          stopButton.innerText = PauseButtonStates.pauseCleaning;
+          stopButton.onclick = () => pauseCleaning(robotTaskManager);
           startButton.disabled = true;
           clearButton.disabled = true;
-          robot.resume();
+          robotTaskManager.startTasks();
         }
 
-        function initStopButton() {
-          stopButton.innerText = "Stop Cleaning";
-          stopButton.onclick = stopCleaning;
-        }
-
-        async function waitOnStopped() {
-          const robot = getRobot();
-          if (!robot) return;
-          if (robot.stopped) {
-            await new Promise((resolve) => {
-              robot.resume = resolve;
-            });
-          }
+        function initStopButton(robotTaskManager) {
+          stopButton.innerText = PauseButtonStates.pauseCleaning;
+          stopButton.onclick = null;
         }
       })(mainModule);
     </script>

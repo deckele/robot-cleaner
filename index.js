@@ -1,11 +1,11 @@
 /**************************
  * interface Robot {
- *   move(): Promise<boolean>;
- *   rotate(): Promise<void>;
- *   cleanSpot(): Promise<void>;
+ *   move(): boolean;
+ *   rotate(): void;
+ *   cleanSpot(): void;
  * }
  **************************/
 
-async function cleanFloor(robot) {
+function cleanFloor(robot) {
   // Your code here
 }

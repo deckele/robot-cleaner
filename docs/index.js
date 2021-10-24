@@ -1,15 +1,15 @@
 /**************************
  * interface Robot {
- *   move(): Promise<boolean>;
- *   rotate(): Promise<void>;
- *   cleanSpot(): Promise<void>;
+ *   move(): boolean;
+ *   rotate(): void;
+ *   cleanSpot(): void;
  * }
  **************************/
 
-async function cleanFloor(robot) {
+function cleanFloor(robot) {
   const controller = new RobotController(robot, 0, 0);
   const visited = new Set();
-  await robotDfs(robot, controller, visited, null);
+  robotDfs(robot, controller, visited, null);
 }
 
 const Directions = {
@@ -44,14 +44,14 @@ class RobotController {
     this.x = initialX;
     this.y = initialY;
   }
-  async move(direction) {
+  move(direction) {
     if (direction == null || direction < 0 || direction >= numOfDirections) {
       throw "error: illegal direction";
     }
     while (this.rotation !== direction) {
-      await this.rotate();
+      this.rotate();
     }
-    let moveSucceeded = await this.robot.move();
+    let moveSucceeded = this.robot.move();
     if (!moveSucceeded) return false;
     switch (this.rotation) {
       case Directions.north:
@@ -87,25 +87,25 @@ class RobotController {
   }
 }
 
-async function robotDfs(robot, controller, visited, goBackCallback) {
-  await robot.cleanSpot();
+function robotDfs(robot, controller, visited, goBackCallback) {
+  robot.cleanSpot();
   visited.add(controller.position);
 
   if (!visited.has(controller.getPositionNorth())) {
-    if (await controller.moveNorth())
-      await robotDfs(robot, controller, visited, () => controller.moveSouth());
+    if (controller.moveNorth())
+      robotDfs(robot, controller, visited, () => controller.moveSouth());
   }
   if (!visited.has(controller.getPositionEast())) {
-    if (await controller.moveEast())
-      await robotDfs(robot, controller, visited, () => controller.moveWest());
+    if (controller.moveEast())
+      robotDfs(robot, controller, visited, () => controller.moveWest());
   }
   if (!visited.has(controller.getPositionSouth())) {
-    if (await controller.moveSouth())
-      await robotDfs(robot, controller, visited, () => controller.moveNorth());
+    if (controller.moveSouth())
+      robotDfs(robot, controller, visited, () => controller.moveNorth());
   }
   if (!visited.has(controller.getPositionWest())) {
-    if (await controller.moveWest())
-      await robotDfs(robot, controller, visited, () => controller.moveEast());
+    if (controller.moveWest())
+      robotDfs(robot, controller, visited, () => controller.moveEast());
   }
-  await goBackCallback?.();
+  goBackCallback?.();
 }
